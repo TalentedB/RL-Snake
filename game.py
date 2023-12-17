@@ -106,7 +106,7 @@ def getGridPosColor(pos):
         return RED
 
 def movePlayer(key):
-    if key:
+    if key[player.move[0]] or key[player.move[1]] or key[player.move[2]] or key[player.move[3]]:
         if key[player.move[0]]:
             player.rect.x -= player.vx
             gameState.movementDirection = [-1, 0]
