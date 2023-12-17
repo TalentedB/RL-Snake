@@ -29,7 +29,7 @@ class GameState:
         self.grid = [[0 for x in range(gridSize)] for y in range(gridSize)]
         self.PlayerSize = 1
         self.movementDirection = [1, 0]
-        self.PlayerBody = [(0, 0)]
+        self.PlayerBody = []
         self.FoodSpawned = 0
 
 pygame.init()  
@@ -65,8 +65,16 @@ def drawGrid():
     for x in range(0, screenSize[0], blockSize):
         for y in range(0, screenSize[1], blockSize):
             rect = pygame.Rect(x, y, blockSize, blockSize)
+            
+            if gameState.PlayerSize > 1:
+                for i in range(len(gameState.PlayerBody)):
+                    # print(rect.center)
+                    if gameState.PlayerBody[i] == (rect.center[0] - blockSize/2, rect.center[1] - blockSize/2):
+                        # print("Player body: " + str(gameState.PlayerBody[i]))
+                        pygame.draw.rect(screen, GREEN, rect, 0)
 
             pygame.draw.rect(screen, getGridPosColor((x//blockSize,y//blockSize)), rect, 1)
+
 
 
 
@@ -84,16 +92,29 @@ def spawnFood():
 
 
 def movePlayerBody():
-    for i in range(len(gameState.PlayerBody)):
+    for i in range(len(gameState.PlayerBody) - 1, -1, -1):
         if i == 0:
             gameState.PlayerBody[i] = (player.rect.x, player.rect.y)
         else:
             gameState.PlayerBody[i] = gameState.PlayerBody[i-1]
     if gameState.FoodSpawned == 0:
-        gameState.PlayerBody.append(gameState.PlayerBody[-1])
-        # gameState.PlayerBody.pop()
+        if len(gameState.PlayerBody) == 0:
+            gameState.PlayerBody.append((player.rect.x, player.rect.y))
+        else:
+            gameState.PlayerBody.append(gameState.PlayerBody[-1])
     
     print(gameState.PlayerBody)
+
+
+def checkBoundary():
+    if player.rect.x > screenSize[0] - blockSize:
+        player.rect.x = 0
+    if player.rect.x < 0:
+        player.rect.x = screenSize[0] - blockSize
+    if player.rect.y > screenSize[1] - blockSize:
+        player.rect.y = 0
+    if player.rect.y < 0:
+        player.rect.y = screenSize[1] - blockSize
 
 
 def getGridPosColor(pos):
@@ -140,20 +161,24 @@ def main():
         
         # Draw
         screen.fill(bg)  
-        drawGrid()
         movePlayerBody()
-        spawnFood()
+        drawGrid()
         
+        spawnFood()
+        checkBoundary()
 
         # Check for collisions
         food_hit = pygame.sprite.spritecollide(player, food_group, True)  
         if food_hit:
             gameState.PlayerSize += 1
             gameState.FoodSpawned = 0
-            print(food_hit[0].rect.center)
+            # print(food_hit[0].rect.center)
             # print("Player size: " + str(gameState.PlayerSize))
 
-
+        # player_hit = pygame.sprite.spritecollide(player, player_group, False)
+        # if player_hit:
+        #     print("Game over")
+        #     return False
         player_group.draw(screen)  
         food_group.draw(screen) 
 
