@@ -8,28 +8,16 @@ WHITE = (200, 200, 200)
 GREEN = (0, 255, 0)
 RED = (255, 0, 0)
 
-class Sprite(pygame.sprite.Sprite):  
-    def __init__(self, pos):  
-        pygame.sprite.Sprite.__init__(self)  
-        self.image = pygame.Surface([blockSize, blockSize])  
-        self.image.fill(GREEN)  
-        self.rect = self.image.get_rect()  
-        self.rect.center = pos  
-
-class FoodSprite(pygame.sprite.Sprite):
-    def __init__(self, pos):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.Surface([blockSize, blockSize])  
-        self.image.fill(RED)  
-        self.rect = self.image.get_rect()  
-        self.rect.center = pos
+MAX_FOOD = 1
+PLAYER_SPAWN = [2, 0]
 
 class GameState:
     def __init__(self, gridSize):
         self.grid = [[0 for x in range(gridSize)] for y in range(gridSize)]
         self.PlayerSize = 1
-        self.movementDirection = [1, 0]
-        self.PlayerBody = []
+        self.movementDirection = [0, 1]
+        self.PlayerBody = [PLAYER_SPAWN]
+        self.PlayerHead = PLAYER_SPAWN
         self.FoodSpawned = 0
 
 pygame.init()  
@@ -42,23 +30,18 @@ screen = pygame.display.set_mode(screenSize)
 blockSize = 50
 gridSize = int(screenSize[0] // blockSize)
 gameState = GameState(gridSize)
-food_group = pygame.sprite.Group() 
 
 
-
-player = Sprite([blockSize/2, blockSize/2])  
 
 # Define keys for player movement  
-player.move = [pygame.K_LEFT, pygame.K_RIGHT, pygame.K_UP, pygame.K_DOWN]  
-player.vx = blockSize
-player.vy = blockSize
+playerMoves = [pygame.K_LEFT, pygame.K_RIGHT, pygame.K_UP, pygame.K_DOWN]  
 
 
 
-print("Screen size: " + str(screenSize))
-print("Block size: " + str(blockSize))
+# print("Screen size: " + str(screenSize))
+# print("Block size: " + str(blockSize))
 
-print("Grid size: " + str(gridSize))
+# print("Grid size: " + str(gridSize))
 
 
 def drawGrid():
@@ -66,89 +49,110 @@ def drawGrid():
         for y in range(0, screenSize[1], blockSize):
             rect = pygame.Rect(x, y, blockSize, blockSize)
             
-            if gameState.PlayerSize > 1:
-                for i in range(len(gameState.PlayerBody)):
-                    # print(rect.center)
-                    if gameState.PlayerBody[i] == (rect.center[0] - blockSize/2, rect.center[1] - blockSize/2):
-                        # print("Player body: " + str(gameState.PlayerBody[i]))
-                        pygame.draw.rect(screen, GREEN, rect, 0)
-
-            pygame.draw.rect(screen, getGridPosColor((x//blockSize,y//blockSize)), rect, 1)
+            pygame.draw.rect(screen,  getGridPosColor((x//blockSize,y//blockSize)), rect, 0)
+            pygame.draw.rect(screen, BLACK, rect, 1)
 
 
 
 
 def spawnFood():
-    if gameState.FoodSpawned == 0:
-        random_x = round(random.randint(0, screenSize[0] - 1))//blockSize * blockSize
-        random_y = round(random.randint(0, screenSize[1] - 1))//blockSize * blockSize
-        # print("Random x: " + str(random_x) + " Random y: " + str(random_y))
+    if gameState.FoodSpawned < MAX_FOOD:
+        while True:
+            random_x = round(random.randint(0, len(gameState.grid) - 1))
+            random_y = round(random.randint(0, len(gameState.grid) - 1))
 
-        gameState.grid[random_x//blockSize][random_y//blockSize] = 2
-        gameState.FoodSpawned = 1
+            if gameState.grid[random_x][random_y] != 0:
+                continue
 
-        food = FoodSprite([random_x + blockSize/2, random_y + blockSize/2])  
-        food_group.add(food)
+            gameState.grid[random_x][random_y] = 2
+            gameState.FoodSpawned += 1
+            break
+
+
 
 
 def movePlayerBody():
-    for i in range(len(gameState.PlayerBody) - 1, -1, -1):
-        if i == 0:
-            gameState.PlayerBody[i] = (player.rect.x, player.rect.y)
-        else:
-            gameState.PlayerBody[i] = gameState.PlayerBody[i-1]
+
+    tail = gameState.PlayerBody[-1]
+
+    if len(gameState.PlayerBody) == 1:
+        tail = (gameState.PlayerHead[0] - gameState.movementDirection[0], gameState.PlayerHead[1] - gameState.movementDirection[1])
+    else:
+        tail = gameState.PlayerBody[-1]
+
+    for i in range(len(gameState.PlayerBody) - 1, 0, -1):
+        gameState.PlayerBody[i] = gameState.PlayerBody[i-1]
+
+    gameState.PlayerBody[0] = gameState.PlayerHead
+    gameState.grid[gameState.PlayerHead[0]][gameState.PlayerHead[1]] = 1
+
     if gameState.FoodSpawned == 0:
-        if len(gameState.PlayerBody) == 0:
-            gameState.PlayerBody.append((player.rect.x, player.rect.y))
-        else:
-            gameState.PlayerBody.append(gameState.PlayerBody[-1])
-    
+        gameState.PlayerBody.append(tail)
+        gameState.grid[tail[0]][tail[1]] = 1
+    else:
+        print("Tail: " + str(tail))
+        gameState.grid[tail[0]][tail[1]] = 0
+
     print(gameState.PlayerBody)
 
 
 def checkBoundary():
-    if player.rect.x > screenSize[0] - blockSize:
-        player.rect.x = 0
-    if player.rect.x < 0:
-        player.rect.x = screenSize[0] - blockSize
-    if player.rect.y > screenSize[1] - blockSize:
-        player.rect.y = 0
-    if player.rect.y < 0:
-        player.rect.y = screenSize[1] - blockSize
+    if gameState.PlayerHead[0] > len(gameState.grid) - 1:
+        gameState.PlayerHead[0] = 0
+        gameState.PlayerBody[0] = [0, gameState.PlayerHead[1]]
+    if gameState.PlayerHead[0] < 0:
+        gameState.PlayerHead[0] = len(gameState.grid) - 1
+        gameState.PlayerBody[0] = [len(gameState.grid) - 1, gameState.PlayerHead[1]]
+    if gameState.PlayerHead[1] > len(gameState.grid) - 1:
+        gameState.PlayerHead[1] = 0
+        gameState.PlayerBody[0] = [gameState.PlayerHead[0], 0]
+    if gameState.PlayerHead[1] < 0:
+        gameState.PlayerHead[1] = len(gameState.grid) - 1
+        gameState.PlayerBody[0] = [gameState.PlayerHead[0], len(gameState.grid) - 1]
 
+
+def checkCollision():
+    for i in range(1, len(gameState.PlayerBody)):
+        if gameState.PlayerHead == gameState.PlayerBody[i]:
+            return True
+    return False
+    
 
 def getGridPosColor(pos):
+    if gameState.grid[pos[0]][pos[1]] == 1:
+        # print("Player head: " + str(gameState.PlayerHead))
+        return GREEN
     if gameState.grid[pos[0]][pos[1]] == 0:
         # return [WHITE, RED][random.randint(0, 1)]
         return WHITE
-    if gameState.grid[pos[0]][pos[1]] == 1:
-        return GREEN
     if gameState.grid[pos[0]][pos[1]] == 2:
         return RED
 
+
 def movePlayer(key):
-    if key[player.move[0]] or key[player.move[1]] or key[player.move[2]] or key[player.move[3]]:
-        if key[player.move[0]]:
-            player.rect.x -= player.vx
+    if key[playerMoves[0]] or key[playerMoves[1]] or key[playerMoves[2]] or key[playerMoves[3]]:
+        if key[playerMoves[0]]:
+            gameState.PlayerHead[0] -= 1
             gameState.movementDirection = [-1, 0]
-        elif key[player.move[1]]:
-            player.rect.x += player.vx
+        elif key[playerMoves[1]]:
+            gameState.PlayerHead[0] += 1
             gameState.movementDirection = [1, 0]
-        elif key[player.move[2]]:
-            player.rect.y -= player.vy
+        elif key[playerMoves[2]]:
+            gameState.PlayerHead[1] -= 1
             gameState.movementDirection = [0, -1]
-        elif key[player.move[3]]:
-            player.rect.y += player.vy
+        elif key[playerMoves[3]]:
+            gameState.PlayerHead[1] += 1
             gameState.movementDirection = [0, 1]
     else:
-        player.rect.x += player.vx * gameState.movementDirection[0]
-        player.rect.y += player.vy * gameState.movementDirection[1]
+        gameState.PlayerHead[0] += gameState.movementDirection[0]
+        gameState.PlayerHead[1] += gameState.movementDirection[1]
 
-
+def checkFoodEaten():
+    if gameState.grid[gameState.PlayerHead[0]][gameState.PlayerHead[1]] == 2:
+        return True
+    return False
 def main():  
  
-    player_group = pygame.sprite.Group()  
-    player_group.add(player)  
   
     while True:  
         for event in pygame.event.get():  
@@ -158,29 +162,27 @@ def main():
         # Movement
         key = pygame.key.get_pressed()  
         movePlayer(key)
+        spawnFood()
+        if checkFoodEaten():
+            gameState.PlayerSize += 1
+            gameState.FoodSpawned -= 1
+            print("Food eaten")
+        
+        checkBoundary()
+        movePlayerBody()
         
         # Draw
         screen.fill(bg)  
-        movePlayerBody()
         drawGrid()
         
-        spawnFood()
-        checkBoundary()
-
+        
+        
         # Check for collisions
-        food_hit = pygame.sprite.spritecollide(player, food_group, True)  
-        if food_hit:
-            gameState.PlayerSize += 1
-            gameState.FoodSpawned = 0
-            # print(food_hit[0].rect.center)
-            # print("Player size: " + str(gameState.PlayerSize))
+        
 
-        # player_hit = pygame.sprite.spritecollide(player, player_group, False)
-        # if player_hit:
-        #     print("Game over")
-        #     return False
-        player_group.draw(screen)  
-        food_group.draw(screen) 
+        if checkCollision():
+            print("Game Over")
+            # return 0
 
         pygame.display.update()  
         clock.tick(fps)  
