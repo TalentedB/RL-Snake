@@ -24,7 +24,7 @@ class GameState:
 
 pygame.init()  
 clock = pygame.time.Clock()  
-fps = 5
+fps = 3
 bg = [0, 0, 0]  
 screenSize =[600, 600]  
 screen = pygame.display.set_mode(screenSize)  
